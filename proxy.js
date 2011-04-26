@@ -1,24 +1,25 @@
-var httpProxy = require('http-proxy');
-   
-//
-// Http Proxy Server with Proxy Table
-//
-httpProxy.createServer(9797, 'localhost').listen(8000);
+var httpProxy = require('http-proxy')
+  , http = require('http')
+  , static = require('node-static')
+
 
 var railsProxy = new httpProxy.HttpProxy();
 
-function proxyRails(req, res, next){
-  railsProxy.proxyRequest(req, res, {
-    host: 'localhost',
-    port: 3000
-  });
-}
+var fileServer = new static.Server('./public');
 
-var connect = require('connect');
+http.createServer(function (request, response) {
+    request.addListener('end', function () {
+        fileServer.serve(request, response, function (e, res) {
+            console.log(e);
+            if (e && (e.status === 404)) { // If the file wasn't found
+              railsProxy.proxyRequest(request, response, {
+                host: 'localhost',
+                port: 3000
+              });
+            }
+        });
+    });
+}).listen(8080);
+    
+   
 
-var server = connect.createServer();
-
-server.use(connect.static(__dirname + '/public'));
-server.use(proxyRails);
-
-server.listen(9797);
